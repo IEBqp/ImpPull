@@ -31,8 +31,6 @@ class ImpPull():
         self.git_ignore = git_ignore
         self.SSHClient = paramiko.SSHClient()
         self.SSHClient.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        
-        print(host_ip,username,private_key)
         self.SSHClient.connect(host_ip,username=username,key_filename=private_key)
         self.SFTPClient = self.SSHClient.open_sftp()
         self.gitignore_matcher = parse_gitignore(git_ignore) if git_ignore != None else None
@@ -139,7 +137,7 @@ class ImpPull():
         directories, files = [], []
         for entry in listings:
             if self.gitignore_matcher != None:
-                if self.gitignore_matcher(os.path.join(path,entry.filename)):
+                if self.gitignore_matcher(os.path.abspath(os.path.join(path,entry.filename))):
                     print(f"Found {path+'/'+entry.filename} in gitignore, skipping") 
                     continue
             if stat.S_ISDIR(entry.st_mode):
@@ -265,8 +263,13 @@ def main():
         if args.clone_from.lower() not in ("local","remote"):
             raise Exception("Invalid from value, use 'local' or 'remote'")
 
+    if args.relative_to == None:
+        raise Exception("You must specify the relative folder this code is supposed to be running from, our bash script does this automatically.")
+
     clone_from = args.clone_from if args.config is None else config["IMPPULL"]["CLONEFROM"]
     
+    os.chdir(args.relative_to) 
+
     imppull = ImpPull(
         username = args.username if args.config == None else config["IMPPULL"]["USERNAME"],
         host_ip = args.address if args.config == None else config["IMPPULL"]["ADDRESS"],
